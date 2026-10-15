@@ -1,0 +1,22 @@
+{
+  "name": "greenlight",
+  "version": "2.0.1",
+  "private": true,
+  "description": "GreenLight: an on-chain URL trust registry judged by GenLayer AI validators (Studionet).",
+  "type": "module",
+  "scripts": {
+    "test": "python3 tests/run_all_tests.py",
+    "test:unit": "python3 tests/test_green_light.py",
+    "test:adversarial": "python3 tests/adversarial_suite.py",
+    "test:wallet": "node tests/wallet.test.mjs",
+    "lint:contract": "genvm-lint check contracts/green_light.py",
+    "deploy": "node scripts/deploy.mjs",
+    "serve": "cd frontend && python3 -m http.server 8080"
+  },
+  "dependencies": {
+    "genlayer-js": "^1.1.8"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
