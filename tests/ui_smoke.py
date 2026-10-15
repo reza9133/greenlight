@@ -98,7 +98,7 @@ def demo(browser):
     page.fill("#hu", "https://never-seen.example/page")
     page.click("#hf button")
     page.wait_for_selector("#chk .callout")
-    assert "Nobody has scanned" in page.inner_text("#chk")
+    assert "No validator has inspected" in page.inner_text("#chk")
     # check page for a known demo URL shows the AI summary and a permalink button
     page.goto(BASE + "/#/check/" + "https%3A%2F%2Fclaim-airdrop-now.example%2Fwallet")
     page.wait_for_selector(".result")
@@ -116,12 +116,12 @@ def demo(browser):
     page.wait_for_function("document.querySelectorAll('.row').length === 1")
     page.fill("#q", "zzzz-nothing")
     page.wait_for_selector("#list .note")
-    # host page, my scans (needs wallet), docs, how, integrate
+    # host page, my scans (needs wallet), playground, docs, how, integrate
     page.goto(BASE + "/#/host/claim-airdrop-now.example")
     page.wait_for_selector(".row")
     page.goto(BASE + "/#/me")
     page.wait_for_selector("#meh .callout")
-    for route in ("docs/overview", "docs/signals", "docs/consensus", "docs/security", "docs/wallets", "docs/deploy", "how", "integrate"):
+    for route in ("playground", "docs/overview", "docs/signals", "docs/consensus", "docs/security", "docs/wallets", "docs/deploy", "how", "integrate"):
         page.goto(BASE + "/#/" + route)
         page.wait_for_selector("main h1")
     page.goto(BASE + "/#/docs/deploy")
@@ -133,7 +133,7 @@ def demo(browser):
         page.wait_for_selector(".hero")
     page.goto(BASE + "/#/docs/constructor")
     page.wait_for_selector("main h1")
-    assert page.inner_text("main h1") == "Overview"
+    assert page.inner_text("main h1") == "Architecture Overview"
     # scan page in demo mode produces a simulated verdict
     page.goto(BASE + "/#/scan")
     page.fill("#u", "https://example.org/some/page")
@@ -193,7 +193,7 @@ def live(browser):
     page.click("#go")
     page.wait_for_selector("#out .result", timeout=20000)
     out = page.inner_text("#out")
-    assert "GREEN" in out and "ordinary reading page" in out and "Permanent link" in out and "ab" * 8 in out
+    assert "GREEN" in out and "ordinary reading page" in out and "Permanent Link" in out and "0xabab...abab" in out
     # the permanent link opens the stored record
     page.click("#out a.ghost")
     page.wait_for_selector("#chk .result")
@@ -210,7 +210,7 @@ def live(browser):
     assert page.locator(".row").count() == 1
     page.goto(BASE + "/#/me")
     page.wait_for_selector(".row")
-    assert "1 scan(s) submitted" in page.inner_text("#meh")
+    assert "1 total scans recorded" in page.inner_text("#meh")
     # host page: rows the client filter drops must not shift the next page (no duplicates, nothing skipped)
     page.goto(BASE + "/#/host/multi.example")
     page.wait_for_function("document.querySelectorAll('.row').length === 6")
@@ -237,7 +237,7 @@ def races(browser):
     page.wait_for_selector("#fv")
     page.wait_for_timeout(2500)
     assert page.locator("#list .row").count() == 0, page.inner_text("#list")
-    assert "Nothing matches" in page.inner_text("#list")
+    assert "No matching URLs found" in page.inner_text("#list")
     assert not errors, errors
     page.context.close()
 
