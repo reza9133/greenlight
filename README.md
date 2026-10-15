@@ -163,7 +163,7 @@ npm run test:wallet        # EIP-6963 wallet provider tests
 | `config()` | `None` | `dict` | Contract version, scoring thresholds, and tuning parameters. |
 
 ---
-
+Integrating From Another Intelligent Contract
 from genlayer import *
 import typing
 
