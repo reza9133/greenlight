@@ -164,6 +164,7 @@ npm run test:wallet        # EIP-6963 wallet provider tests
 
 ---
 Integrating From Another Intelligent Contract
+Python
 from genlayer import *
 import typing
 
