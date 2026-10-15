@@ -2,6 +2,8 @@
 
 An on-chain **URL trust registry** judged by GenLayer AI validators, engineered for **Studionet**.
 
+**Deployed Contract (Studionet):** `0x7F2217DAaF35c3082c5A8f2d2942908b7337369F`
+
 GreenLight enables decentralized, verifiable web safety. Anyone can ask the network to scan a web address. The leader validator fetches the page, computes objective heuristics in deterministic code, asks an LLM for a risk assessment and plain-language summary, and blends both into an on-chain score. Independent network validators re-execute the entire pipeline and accept the leader only if their independent scores land within a strict mathematical tolerance (Equivalence Principle).
 
 The resulting verdict is stored immutably on-chain and can be queried by users, Web3 applications, and other Intelligent Contracts at zero gas cost.
