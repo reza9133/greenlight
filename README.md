@@ -23,7 +23,7 @@ The resulting verdict is stored immutably on-chain and can be queried by users, 
 
 ## Architecture & Consensus Flow
 
-```
+```text
 User Transaction: scan(url)
            │
            ▼
@@ -86,7 +86,7 @@ npm run serve
 
 ## Repository Structure
 
-```
+```text
 contracts/
   green_light.py         Intelligent Contract (Python, GenVM v2.1.0)
 frontend/
@@ -111,11 +111,11 @@ tests/
 
 | Threat / Attack Vector | Mitigation in GreenLight v2.1.0 | Test Verification |
 | :--- | :--- | :--- |
-| **Prompt Injection Attacks** | Untrusted page content is isolated inside fenced tags. A deterministic hard floor enforces that any page triggering code heuristics $\ge 70$ is locked to `RED`, regardless of LLM score. | `tests/adversarial_suite.py` [3/6] |
-| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags execute in $< 0.1$s. | `tests/adversarial_suite.py` [2/6] |
+| **Prompt Injection Attacks** | Untrusted page content is isolated inside fenced tags. A deterministic hard floor enforces that any page triggering code heuristics >= 70 is locked to `RED`, regardless of LLM score. | `tests/adversarial_suite.py` [3/6] |
+| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags execute in < 0.1s. | `tests/adversarial_suite.py` [2/6] |
 | **SSRF & Private IP Evasion** | Blocks private IPv4 ranges, AWS/GCP metadata endpoints, CGNAT, benchmark ranges, octal-padded IPs (`012.0.0.1`), dotless decimal IPs, and wildcard DNS domains (`nip.io`, `sslip.io`, `vcap.me`). | `tests/adversarial_suite.py` [1/6] |
 | **Malicious Page Takedown** | If an attacker takes a malicious page offline after a `RED` verdict, GreenLight preserves the `RED` verdict across the 1st and 2nd unreachable scans. Only 3 consecutive unreachable scans transition to `UNREACHABLE`. | `tests/adversarial_suite.py` [5/6] |
-| **Consensus Disruption / Forgery** | Validators strictly compare URL-derived flags, reachability, and risk score tolerance ($\le 20$). Inconsistent leader fields trigger automatic leader rotation. | `tests/adversarial_suite.py` [4/6] |
+| **Consensus Disruption / Forgery** | Validators strictly compare URL-derived flags, reachability, and risk score tolerance (<= 20). Inconsistent leader fields trigger automatic leader rotation. | `tests/adversarial_suite.py` [4/6] |
 | **Circular Buffer History Leaks** | Per-URL scan history is bounded to a circular buffer of the last 8 entries (`HISTORY_KEEP`), preventing unbounded storage growth. | `tests/adversarial_suite.py` [5/6] |
 | **View Method Failures** | View methods (`is_safe`, `check`, `get_scan`, `host_overview`) gracefully catch invalid or malformed inputs without reverting. | `tests/adversarial_suite.py` [6/6] |
 
@@ -163,8 +163,10 @@ npm run test:wallet        # EIP-6963 wallet provider tests
 | `config()` | `None` | `dict` | Contract version, scoring thresholds, and tuning parameters. |
 
 ---
-Integrating From Another Intelligent Contract
-Python
+
+## Integrating From Another Intelligent Contract
+
+```python
 from genlayer import *
 import typing
 
