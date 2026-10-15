@@ -78,7 +78,10 @@ npm test
 # 3. Deploy to GenLayer Studionet (generates throwaway key or uses PRIVATE_KEY=0x...)
 npm run deploy
 
-# 4. Serve the frontend locally (or deploy static files to Cloudflare Pages)
+# 4. Generate on-chain E2E report (broadcasts real scans & writes STUDIONET_RUN.md)
+npm run report:studionet
+
+# 5. Serve the frontend locally (or deploy static files to Cloudflare Pages)
 npm run serve
 ```
 
@@ -97,6 +100,7 @@ frontend/
   config.js              Contract address, pinned SDK URLs, chain parameters
 scripts/
   deploy.mjs             Studionet deployment script, updates config.js automatically
+  e2e_reporter.mjs       Automated E2E runner: broadcasts scans and writes STUDIONET_RUN.md
 tests/
   test_green_light.py    Core contract logic unit tests (with GenVM stub)
   adversarial_suite.py   Security & exploit test suite (Prompt injection, ReDoS, SSRF, takedown)
