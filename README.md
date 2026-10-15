@@ -164,9 +164,6 @@ npm run test:wallet        # EIP-6963 wallet provider tests
 
 ---
 
-## Integrating From Another Intelligent Contract
-
-```python
 from genlayer import *
 import typing
 
@@ -179,7 +176,7 @@ class GreenLightRegistry:
         def scan(self, url: str) -> None: ...
 
 # Example: Guarding links submitted to your contract
-registry = GreenLightRegistry(Address("0xYourDeployedAddress"))
+registry = GreenLightRegistry(Address("0x7F2217DAaF35c3082c5A8f2d2942908b7337369F"))
 if not registry.view().is_safe(external_link):
     raise gl.vm.UserError("[SECURITY] Link is not verified safe by GreenLight")
 ```
