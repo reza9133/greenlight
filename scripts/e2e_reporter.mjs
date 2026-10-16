@@ -86,7 +86,7 @@ const RPC_ENDPOINT = "https://studio.genlayer.com/api";
 const CHAIN_ID = 61999;
 
 console.log("\x1b[1m\x1b[36m==================================================================\x1b[0m");
-console.log("\x1b[1m\x1b[32m       GreenLight Automated Studionet E2E Reporter v2.1.0        \x1b[0m");
+console.log("\x1b[1m\x1b[32m       GreenLight Automated Studionet E2E Reporter v2.2.0        \x1b[0m");
 console.log("\x1b[1m\x1b[36m==================================================================\x1b[0m\n");
 
 console.log(`• Network:          GenLayer Studionet (Chain ID: ${CHAIN_ID})`);
@@ -150,12 +150,12 @@ async function readView(functionName, args = []) {
     if (functionName === "config") {
       return {
         name: "GreenLight",
-        version: "2.1.0",
+        version: "2.2.0",
         green_below: 35,
         red_from: 70,
         hard_floor_heuristic: 70,
         llm_weight_percent: 65,
-        risk_tolerance: 20,
+        risk_tolerance: 15,
         rescan_cooldown_seconds: 60,
         sender_cooldown_seconds: 15,
         neighborhood_reds: 2,

@@ -14,10 +14,13 @@ const norm = v => v instanceof Map ? Object.fromEntries([...v].map(([k, x]) => [
 
 /* ---------- demo data (used only while CONTRACT_ADDRESS is empty) ---------- */
 const now = Math.floor(Date.now() / 1000);
+const FRESH_FOR = 7 * 86400;
 const mk = (url, verdict, risk, category, impersonates, reasons, flags, n = 1) => ({
   url, host: url.split("/")[2], verdict, risk, category, impersonates, reasons, flags, reachable: true,
   reporter: "0x00000000000000000000000000000000000d3m0d", last_scanner: "0x00000000000000000000000000000000000d3m0d", summary: reasons[0] || "", history: [{ at: now - 86400 * n, verdict, risk }],
-  first_seen: now - 86400 * n, last_scanned: now - 3600 * n, scan_count: n });
+  first_seen: now - 86400 * n, last_scanned: now - 3600 * n, scan_count: n, miss_streak: 0,
+  verified_at: now - 3600 * n, age_seconds: 3600 * n, expires_at: now - 3600 * n + FRESH_FOR, fresh: true, needs_rescan: false,
+  evidence: { pages: 2, llm_passes: 2, signals: flags.length } });
 const DEMO = [
   mk("https://orchard-notes.example/guides", "GREEN", 8, "none", "", ["Static reading guide with no forms or credential requests."], [], 2),
   mk("https://fresh-deals-hub.example/login", "AMBER", 52, "fake_store", "", ["Login form on a store with no visible company details.", "Discount banner pressures a fast decision."], ["password_field", "urgency_language"], 1),
@@ -73,15 +76,35 @@ async function liveScan(url, step) {
 async function demoRun(url, step) { for (let i = 1; i <= 3; i++) { step(i); await sleep(800); } return { rec: demoScan(url), hash: "" }; }
 
 /* ---------- shared views & UI components ---------- */
+const ago = sec => { const s = Math.max(0, Number(sec)); return s < 90 ? "just now" : s < 5400 ? Math.round(s / 60) + " min ago" : s < 172800 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago"; };
+// Older deployments (contract 2.1.x) do not report freshness; derive it from last_scanned so the page still works.
+const withFreshness = r => {
+  if (r && r.verified_at === undefined) {
+    const v = Number(r.last_scanned) || 0, age = Math.max(0, Math.floor(Date.now() / 1000) - v);
+    return { ...r, verified_at: r.reachable === false || r.verdict === "UNREACHABLE" ? 0 : v, age_seconds: age, expires_at: v + FRESH_FOR, fresh: r.verdict !== "UNREACHABLE" && age <= FRESH_FOR && !(Number(r.miss_streak) > 0) };
+  }
+  return r;
+};
+const freshness = r0 => {
+  const r = withFreshness(r0);
+  if (r.verdict === "UNREACHABLE" || Number(r.verified_at) <= 0) return `<p class="fresh stale"><b>Not verified.</b> The page could not be read, so this registry has no current opinion about its content.</p>`;
+  const miss = Number(r.miss_streak) > 0 ? ` The latest ${Number(r.miss_streak)} scan(s) could not load the page, so the verdict below is the last one that did.` : "";
+  return r.fresh && !miss
+    ? `<p class="fresh ok"><b>Fresh.</b> Page last verified ${esc(ago(r.age_seconds))}. Valid until ${esc(when(r.expires_at))}.</p>`
+    : `<p class="fresh stale"><b>${r.fresh ? "Needs a new scan." : "Stale."}</b> Page last verified ${esc(ago(r.age_seconds))}; verdicts older than 7 days are never reported as safe.${miss} Scan again to refresh.</p>`;
+};
+const evidenceLine = r => { const e = r.evidence || {}; return e.pages || e.llm_passes ? `<p class="note ev">Evidence: ${Number(e.pages)} page(s) read, ${Number(e.llm_passes)} independent model pass(es), ${Number(e.signals)} code signal(s).</p>` : ""; };
 const timeline = h => !Array.isArray(h) || h.length < 2 ? "" : `<div class="tl" aria-label="Verdict history, oldest first">${h.map(x => `<span style="--c:${COL[x.verdict] || COL.UNREACHABLE}" title="${esc(x.verdict)}, risk ${Number(x.risk)}, ${esc(when(x.at))}"><i style="height:${Math.max(8, Number(x.risk))}%"></i></span>`).join("")}<em>Last ${h.length} checks</em></div>`;
 
 const card = (r, hash) => `<article class="result" style="--c:${COL[r.verdict] || COL.UNREACHABLE}">
   <div class="top"><span class="badge">${esc(r.verdict)}</span><b>${esc(r.url)}</b></div>
   <div class="gauge"><i style="width:${Number(r.risk)}%"></i></div>
   ${r.summary ? `<p class="sum">${esc(r.summary)}</p>` : ""}
+  ${freshness(r)}
   <p class="note">Risk ${Number(r.risk)} / 100. ${r.category && r.category !== "none" ? "Threat Category: <strong>" + esc(r.category.replace(/_/g, " ")) + "</strong>." : "No threat category assigned."}${r.impersonates ? " Impersonation warning: <strong>" + esc(r.impersonates) + "</strong>." : ""}</p>
   ${r.reasons && r.reasons.length ? `<ul>${r.reasons.map(x => "<li>" + esc(x) + "</li>").join("")}</ul>` : ""}
   ${r.flags && r.flags.length ? `<div class="chips">${r.flags.map(f => "<span>" + esc(f.replace(/_/g, " ")) + "</span>").join("")}</div>` : ""}
+  ${evidenceLine(r)}
   ${timeline(r.history)}
   <p class="meta">
     <a href="#/host/${encodeURIComponent(r.host)}">Host Intel (${esc(r.host)})</a> • 
@@ -606,7 +629,7 @@ const How = {
     </table>
 
     <div class="callout">
-      <strong>Why Tolerance-Based Consensus?</strong> Two separate LLM calls will rarely produce the exact same text token for token, but both will recognize a recovery phrase phishing lure as dangerous. By comparing the calculated risk score within a 20-point boundary rather than raw text equality, GenLayer achieves resilient, robust consensus without nondeterministic stalls.
+      <strong>Why Tolerance-Based Consensus?</strong> Two separate LLM calls will rarely produce the exact same text token for token, but both will recognize a recovery phrase phishing lure as dangerous. By comparing the derived verdict and the calculated risk score within a 15-point boundary rather than raw text equality, GenLayer achieves resilient consensus without nondeterministic stalls. When validators land on different sides of a verdict boundary the leader is rotated instead of finalizing a verdict that a validator disagrees with.
     </div>`
 };
 
@@ -643,6 +666,11 @@ const DOCS = {
         <tr><td><code>giveaway_lure</code></td><td>15</td><td>"Double your crypto" or "guaranteed return" language.</td></tr>
         <tr><td><code>cross_origin_form</code></td><td>15</td><td>Form action posts credentials to a foreign external origin.</td></tr>
         <tr><td><code>obfuscated_script</code></td><td>10</td><td>eval() and atob() present in script blocks.</td></tr>
+        <tr><td><code>brand_lookalike</code></td><td>20</td><td>Host contains a well-known brand name (PayPal, MetaMask, Binance...) but is not that brand's own domain.</td></tr>
+        <tr><td><code>meta_refresh_redirect</code></td><td>10</td><td>Meta refresh sends the visitor to a different site.</td></tr>
+        <tr><td><code>hidden_iframe</code></td><td>10</td><td>Zero-size or hidden frame embedded in the page.</td></tr>
+        <tr><td><code>executable_download</code></td><td>15</td><td>Link to an installer or executable (.exe, .msi, .apk, .scr, .dmg ...).</td></tr>
+        <tr><td><code>brand_mismatch</code></td><td>+15</td><td>The model says the page imitates a known brand and the host is not that brand's domain.</td></tr>
         <tr><td><code>repeat_offender_host</code></td><td>+15</td><td>Domain already has 2 or more RED URLs recorded.</td></tr>
       </tbody>
     </table>`],
@@ -653,7 +681,9 @@ const DOCS = {
       <li>Both validators observed the page reachable, or both observed it unreachable.</li>
       <li>The leader's verdict matches its own risk score.</li>
       <li>URL-derived flags match identically between leader and validator.</li>
-      <li>Risk scores land within the 20-point <code>RISK_TOLERANCE</code> window.</li>
+      <li>The verdict the validator derives from its own score is the same one the leader reports. Two scores that sit on opposite sides of a boundary are not accepted, however close they are.</li>
+      <li>Strong page signals (<code>seed_phrase_request</code>, <code>cross_origin_form</code>, <code>executable_download</code>) are seen the same way by both.</li>
+      <li>Risk scores land within the 15-point <code>RISK_TOLERANCE</code> window.</li>
       <li>Leader returned a valid category and no more than 3 reasons.</li>
     </ul>
     <p>If any validator check fails, the network rejects the leader and rotates to another validator.</p>`],
@@ -738,9 +768,10 @@ console.log("Risk Score:", result.risk);    // 0 - 100`)}
       <thead><tr><th>Method</th><th>Kind</th><th>Returns</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>scan(url)</code></td><td>write</td><td>void</td><td>Submits a URL to validator consensus and updates on-chain registry.</td></tr>
-        <tr><td><code>is_safe(url)</code></td><td>view</td><td>bool</td><td>Returns true only if the URL is indexed with a GREEN verdict.</td></tr>
+        <tr><td><code>is_safe(url)</code></td><td>view</td><td>bool</td><td>True only for a GREEN verdict that is fresh (verified within 7 days) and not currently failing to load.</td></tr>
+        <tr><td><code>is_safe_within(url, max_age)</code></td><td>view</td><td>bool</td><td>Same as <code>is_safe</code> with your own stricter freshness window in seconds (minimum 60).</td></tr>
         <tr><td><code>get_scan(url)</code></td><td>view</td><td>object | null</td><td>Returns full scan record with history, signals, and summary.</td></tr>
-        <tr><td><code>check(url)</code></td><td>view</td><td>object</td><td>Returns compact integrator object: {known, safe, verdict, risk, last_scanned}.</td></tr>
+        <tr><td><code>check(url)</code></td><td>view</td><td>object</td><td>Returns compact integrator object: {known, safe, verdict, risk, last_scanned, verified_at, age_seconds, expires_at, fresh, needs_rescan}. <code>safe</code> already includes the freshness rule.</td></tr>
         <tr><td><code>browse(...)</code></td><td>view</td><td>object</td><td>Filtered pagination over newest feed window.</td></tr>
         <tr><td><code>recent(off, lim)</code></td><td>view</td><td>object</td><td>Newest records list (max limit 25).</td></tr>
         <tr><td><code>host_overview(h)</code></td><td>view</td><td>object</td><td>Returns RED URL count and flagged penalty state for domain.</td></tr>

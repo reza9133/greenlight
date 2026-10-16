@@ -6,7 +6,7 @@
 - **Block Explorer:** [explorer-studio.genlayer.com](https://explorer-studio.genlayer.com)
 - **Execution Date (UTC):** `2026-10-16T08:47:49.079Z`
 - **Runner Account:** `0x13F22D6922948AA2Db05833d790aF0f438eb8631`
-- **Contract Version:** `v2.1.0`
+- **Contract Version:** `v2.2.0`
 
 ---
 
@@ -129,7 +129,10 @@ A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop w
 | `red_from` | `70` | Blended risk $\ge 70$ produces RED |
 | `hard_floor_heuristic` | `70` | Code score $\ge 70$ forces at least RED |
 | `llm_weight_percent` | `65%` | Percentage weight of LLM assessment |
-| `risk_tolerance` | `20` | Max allowed score gap between Leader & Validators |
+| `risk_tolerance` | `15` | Max allowed score gap between Leader & Validators (the derived verdict must also match: `verdict_must_match`) |
+| `fresh_for_seconds` | `604800` | A verdict counts as fresh for 7 days after the page was last really read |
+| `llm_passes` | `2` | Independent model passes (analyst and auditor) per analysis |
+| `llm_split_limit` | `30` | If the two passes differ by more, the higher risk wins |
 | `rescan_cooldown_seconds` | `60s` | Per-URL rescan cooldown window |
 | `sender_cooldown_seconds` | `15s` | Per-sender anti-spam brake |
 | `neighborhood_bonus` | `+15` | Score penalty added if host has $\ge 2$ RED URLs |

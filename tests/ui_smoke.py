@@ -20,7 +20,7 @@ BASE = None
 FAKE_SDK = """
 let scanned = null;
 const mkrec = url => ({ url, host: url.split("/")[2], verdict: "GREEN", risk: 5, category: "none", impersonates: "", reasons: [], flags: [], reachable: true,
-  reporter: "0x" + "1".repeat(40), last_scanner: "0x" + "1".repeat(40), first_seen: 1, last_scanned: 1, scan_count: 1, miss_streak: 0, summary: "", history: [] });
+  reporter: "0x" + "1".repeat(40), last_scanner: "0x" + "1".repeat(40), first_seen: 1, last_scanned: 1, scan_count: 1, miss_streak: 0, summary: "", history: [], verified_at: 1, age_seconds: 5, expires_at: 604801, fresh: true, needs_rescan: false, evidence: { pages: 2, llm_passes: 2, signals: 0 } });
 const MULTI = [];
 for (let i = 0; i < 14; i++) MULTI.push(mkrec([0, 3, 5, 8].includes(i) ? "https://other" + i + ".example/?r=multi.example" : "https://multi.example/p" + i));
 export const createAccount = () => ({ address: "0x" + "1".repeat(40) });

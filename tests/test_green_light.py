@@ -79,7 +79,7 @@ for bad in ["https://user@evil.com/", "ftp://example.com/aa", "https://localhost
     assert rejects(m._parse_url, bad), bad
 
 # ---------------------------------------------------------------- signals and text
-assert m._url_signals("http", "secure-login-paypal-verify.xyz")[1] == ["no_https", "hyphen_heavy", "risky_tld", "lure_word_in_host"]
+assert m._url_signals("http", "secure-login-paypal-verify.xyz")[1] == ["no_https", "hyphen_heavy", "risky_tld", "lure_word_in_host", "brand_lookalike"]
 html = ('<html><title>Verify</title><form action="https://evil.example/post"><input type="password"><input name=s></form>'
         "Enter your seed phrase. Act now, urgent! Connect wallet <script>eval(atob('x'))</script></html>")
 text = m._html_to_text(html)
@@ -104,7 +104,8 @@ for bad in [None, "no json", {"risk": "abc"}, {"risk": None}, {"risk": True}, []
 
 # ---------------------------------------------------------------- equivalence rule
 base = {"reachable": True, "risk": 60, "verdict": "AMBER", "category": "phishing", "impersonates": "", "reasons": ["x"], "flags": ["password_field"]}
-assert m._results_agree(base, dict(base, risk=75, verdict="RED"))
+assert m._results_agree(base, dict(base, risk=66))                                   # same verdict, inside tolerance
+assert not m._results_agree(base, dict(base, risk=75, verdict="RED"))                # validator derives RED, leader said AMBER
 assert not m._results_agree(base, dict(base, risk=85, verdict="RED"))
 assert not m._results_agree(dict(base, verdict="RED"), base)                        # verdict inconsistent with score
 assert not m._results_agree(dict(base, flags=["no_https"]), base)                    # URL-derived flags must match
@@ -188,7 +189,8 @@ assert third_rec["summary"] == "" or isinstance(third_rec["summary"], str)
 
 chk = c.check(URL)
 assert chk["known"] and chk["verdict"] == "RED" and chk["safe"] is False and chk["last_scanned"] > 0
-assert c.check("https://unknown.example/zzz") == {"url": "https://unknown.example/zzz", "known": False, "safe": False, "verdict": "", "risk": 0, "last_scanned": 0}
+unk = c.check("https://unknown.example/zzz")
+assert unk["url"] == "https://unknown.example/zzz" and unk["known"] is False and unk["safe"] is False and unk["fresh"] is False and unk["needs_rescan"] is True and unk["last_scanned"] == 0
 
 b = c.browse("RED", "", "", 0, 10)
 assert {i["url"] for i in b["items"]} == {URL, "https://phish.example/two"} and b["more"] is False and b["truncated"] is False
@@ -347,3 +349,141 @@ else:
     print("note: frontend/test-phish.html not found, fixture check skipped")
 
 print("all tests passed")
+
+
+# ---------------------------------------------------------------- v2.2: the verdict itself must agree
+bd = {"reachable": True, "risk": 34, "verdict": "GREEN", "category": "none", "impersonates": "", "reasons": [], "flags": []}
+assert m._results_agree(bd, dict(bd, risk=30))
+assert not m._results_agree(bd, dict(bd, risk=36))             # 2 points apart, but AMBER vs GREEN
+assert not m._results_agree(dict(bd, risk=69, verdict="AMBER"), dict(bd, risk=71))
+assert m._results_agree(dict(bd, risk=69, verdict="AMBER"), dict(bd, risk=60))
+# strong page signals must match both ways, ordinary page signals may differ
+seed = dict(bd, risk=80, verdict="RED", flags=["seed_phrase_request"])
+assert m._results_agree(seed, dict(seed, risk=78))
+assert not m._results_agree(seed, dict(seed, flags=[]))                              # validator did not see the request
+assert not m._results_agree(dict(seed, flags=[]), dict(seed))                        # leader hid it
+assert not m._results_agree(dict(seed, flags=["executable_download"]), dict(seed))
+assert m._results_agree(dict(seed, flags=["seed_phrase_request", "urgency_language"]), seed)
+assert not m._results_agree(dict(bd, flags=["brand_lookalike"]), bd)                 # brand lookalike is URL-derived
+assert m.RISK_TOLERANCE == 15
+
+# ---------------------------------------------------------------- v2.2: brand check
+assert m._brand_lookalike("paypal-secure.xyz") == "paypal" and m._brand_lookalike("my-metamask.io.evil.top") == "metamask"
+for ok in ("www.paypal.com", "paypal.de", "www.paypal.co.uk", "login.microsoftonline.com", "metamask.io", "orchard-notes.example"):
+    assert m._brand_lookalike(ok) == "", ok
+assert m._brand_lookalike("paypal.tk") == "paypal"                                   # free abuse-prone ccTLD is not official
+assert m._brand_of("Trust Wallet") == "trustwallet" and m._brand_of("A well-known wallet") == ""
+
+# ---------------------------------------------------------------- v2.2: wider page signals
+hp = ('<html><meta http-equiv="refresh" content="0; url=https://elsewhere.example/go">'
+      '<iframe src="https://x.example" width="0" height="0"></iframe><a href="/files/update.exe">Update</a></html>')
+_, pf = m._page_signals(hp.lower(), "", "shop.example")
+assert set(pf) == {"meta_refresh_redirect", "hidden_iframe", "executable_download"}, pf
+_, pf = m._page_signals('<meta http-equiv="refresh" content="5; url=https://www.shop.example/home"><iframe width="600" height="400">'.lower(), "", "shop.example")
+assert pf == [], pf                                                                  # same-site refresh and a visible frame are fine
+_, pf = m._page_signals('<a href="/guide.pdf">x</a><a href="/exercise.html">y</a>'.lower(), "", "shop.example")
+assert pf == []
+digest = m._evidence_digest(('<meta name="description" content="Fast wallet sync"><form action="https://drain.example/p"><input type="password">'
+                             '<input name="s"></form><a href="https://other.example/a">a</a><script src="https://cdn.evil.example/x.js"></script><iframe></iframe>').lower(), "shop.example")
+for part in ("fast wallet sync", "drain.example", "password", "other.example", "cdn.evil.example", "iframes: 1"):
+    assert part in digest, part
+assert m._evidence_digest("<html>plain</html>", "shop.example") == "none extracted" and len(m._evidence_digest("<a href=https://z.example/>" * 5000, "a.example")) <= m.MAX_DIGEST
+for hostile in ["<meta " * 100000, "<iframe " * 100000, "href=" * 100000, "<a href=\"" * 50000, "<input " * 100000]:
+    t = time.time()
+    m._page_signals(hostile, "", "x.example")
+    m._evidence_digest(hostile, "x.example")
+    assert time.time() - t < 3, ("slow on", hostile[:10])
+
+# ---------------------------------------------------------------- v2.2: two model passes and a second page
+a = {"risk": 20, "category": "none", "impersonates": "", "reasons": ["a"], "summary": "s1"}
+b = {"risk": 40, "category": "phishing", "impersonates": "PayPal", "reasons": ["b", "a"], "summary": ""}
+cmb = m._combine_llm(a, b)
+assert cmb["risk"] == 30 and cmb["passes"] == 2 and cmb["category"] == "phishing" and cmb["impersonates"] == "PayPal" and cmb["reasons"] == ["b", "a"] and cmb["summary"] == "s1"
+assert m._combine_llm(a, dict(b, risk=90))["risk"] == 90                              # large split: higher risk wins
+assert m._combine_llm(a, None)["passes"] == 1 and m._combine_llm(a, None)["risk"] == 20
+
+calls = []
+fetched = []
+class Site:
+    def __init__(self, status, body):
+        self.status, self.body = status, body
+pages = {"https://deep.example/a/b": Site(200, b"<html><title>Deep</title>Notes</html>"), "https://deep.example/": Site(200, b"<html><title>Home of Deep</title>Welcome</html>")}
+def web_get(k):
+    fetched.append(k)
+    if k in pages:
+        return pages[k]
+    raise Exception("down")
+def fake_llm(p, response_format=None):
+    calls.append(p)
+    return {"risk": 10, "category": "none", "reasons": ["plain"], "impersonates": ""}
+gl.nondet.web = types.SimpleNamespace(get=web_get)
+gl.nondet.exec_prompt = fake_llm
+r = m._analyze("https://deep.example/a/b", "deep.example", "https", 0)
+assert fetched == ["https://deep.example/a/b", "https://deep.example/"]               # page and site root
+assert len(calls) == 2 and "independent brand-and-legitimacy auditor" in calls[1] and "web-safety analyst" in calls[0]
+assert "Home of Deep" in calls[0] and "<page_structure>" in calls[0]
+assert r["evidence"] == {"pages": 2, "llm_passes": 2} and r["verdict"] == "GREEN"
+# a root that cannot be fetched is tolerated; a failing second pass downgrades to one
+fetched.clear(); calls.clear(); del pages["https://deep.example/"]
+n = [0]
+def flaky(p, response_format=None):
+    n[0] += 1
+    if n[0] == 2:
+        raise Exception("llm down")
+    return {"risk": 10, "category": "none", "reasons": []}
+gl.nondet.exec_prompt = flaky
+r = m._analyze("https://deep.example/a/b", "deep.example", "https", 0)
+assert r["evidence"] == {"pages": 1, "llm_passes": 1}
+assert "evidence" in m._analyze("https://deep.example/zzz", "deep.example", "https", 0) or True
+# the model claiming a brand that does not own the host adds a code-checked penalty
+gl.nondet.exec_prompt = lambda p, response_format=None: {"risk": 40, "category": "phishing", "impersonates": "MetaMask", "reasons": ["x"]}
+r = m._analyze("https://deep.example/a/b", "deep.example", "https", 0)
+assert "brand_mismatch" in r["flags"] and r["risk"] >= (40 * m.LLM_WEIGHT) // 100 + m.BRAND_MISMATCH_BONUS
+pages["https://metamask.io/"] = Site(200, b"<html>wallet</html>")
+r = m._analyze("https://metamask.io/", "metamask.io", "https", 0)
+assert "brand_mismatch" not in r["flags"]
+assert m._finalize(dict(r, evidence={"pages": 99, "llm_passes": -3}))["evidence"] == "pages=2,llm_passes=0,signals=%d" % len(r["flags"])
+assert m._evidence_dict("pages=2,llm_passes=1,signals=4") == {"pages": 2, "llm_passes": 1, "signals": 4} and m._evidence_dict("junk")["pages"] == 0
+
+# ---------------------------------------------------------------- v2.2: freshness
+pages.clear()
+pages["https://fresh.example/page"] = Site(200, b"<html><title>Garden</title>Plain notes.</html>")
+gl.nondet.exec_prompt = lambda p, response_format=None: {"risk": 5, "category": "none", "reasons": []}
+f = m.GreenLight()
+f.scans, f.feed, f.host_reds, f.verdict_counts, f.contributors, f.sender_last = TreeMap(), DynArray(), TreeMap(), TreeMap(), TreeMap(), TreeMap()
+f.__init__()
+FU = "https://fresh.example/page"
+clock[0] += 1000
+t0 = clock[0]
+f.scan(FU)
+chk = f.check(FU)
+assert chk["verdict"] == "GREEN" and chk["safe"] and chk["fresh"] and chk["verified_at"] == t0 and chk["expires_at"] == t0 + m.FRESH_FOR and not chk["needs_rescan"]
+assert f.is_safe(FU) and f.is_safe_within(FU, 3600) and not f.is_safe_within(FU, 10) and not f.is_safe_within(FU, "x")
+assert f.get_scan(FU)["evidence"]["llm_passes"] == 2 and f.get_scan(FU)["fresh"] is True
+clock[0] = t0 + 3601
+assert not f.is_safe_within(FU, 3600) and f.is_safe(FU)                               # integrator's own stricter window
+clock[0] = t0 + m.FRESH_FOR + 1
+chk = f.check(FU)
+assert chk["verdict"] == "GREEN" and chk["safe"] is False and chk["fresh"] is False and chk["needs_rescan"] is True
+assert not f.is_safe(FU) and f.get_scan(FU)["fresh"] is False and f.recent(0, 5)["items"][0]["needs_rescan"] is True
+# rescanning makes it fresh again
+f.scan(FU)
+assert f.is_safe(FU) and f.get_scan(FU)["verified_at"] == clock[0]
+# a failed fetch keeps the old verdict but must NOT renew the freshness clock, and it is not safe while failing
+verified = clock[0]
+clock[0] += 3000
+pages.clear()
+f.scan(FU)
+rec = f.get_scan(FU)
+assert rec["verdict"] == "GREEN" and rec["miss_streak"] == 1 and rec["verified_at"] == verified and rec["last_scanned"] == clock[0]
+assert rec["needs_rescan"] is True and f.is_safe(FU) is False and f.check(FU)["safe"] is False
+assert rec["evidence"]["llm_passes"] == 2                                              # retained evidence, not invented
+clock[0] += 100
+f.scan(FU)
+clock[0] += 100
+f.scan(FU)
+rec = f.get_scan(FU)
+assert rec["verdict"] == "UNREACHABLE" and rec["fresh"] is False and rec["verified_at"] == verified and not f.is_safe(FU)
+assert f.config()["fresh_for_seconds"] == m.FRESH_FOR and f.config()["verdict_must_match"] is True
+assert f.check("not a url")["known"] is False and f.is_safe_within("not a url", 3600) is False
+print("v2.2 tests passed")

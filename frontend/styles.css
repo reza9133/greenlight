@@ -1390,3 +1390,9 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+/* Freshness and evidence */
+.fresh { margin: 0.6rem 0; padding: 0.55rem 0.8rem; border-radius: 10px; font-size: 0.9rem; border: 1px solid var(--line); }
+.fresh.ok { background: rgba(0, 245, 155, 0.08); border-color: rgba(0, 245, 155, 0.35); }
+.fresh.stale { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.45); }
+.note.ev { margin: 0.3rem 0; font-size: 0.82rem; }

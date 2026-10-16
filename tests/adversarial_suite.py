@@ -294,8 +294,13 @@ hostile_leaders = [
     # 1. Leader tries to forge URL flags
     dict(honest_leader, flags=["password_field"]),  # dropped no_https URL flag
     dict(honest_leader, flags=["no_https", "ip_host", "password_field"]),  # invented ip_host URL flag
-    # 2. Leader risk gap exceeds tolerance (tolerance is 20)
-    dict(honest_leader, risk=80, verdict="RED"),  # 80 - 45 = 35 > 20
+    # 2. Leader risk gap exceeds tolerance (tolerance is 15)
+    dict(honest_leader, risk=80, verdict="RED"),  # 80 - 45 = 35 > 15
+    # 2b. Scores are close, but the verdicts differ (validator derives AMBER from 55)
+    dict(honest_leader, risk=69, verdict="AMBER", flags=["no_https", "password_field", "seed_phrase_request"]),  # hidden-signal mismatch
+    dict(honest_leader, risk=29, verdict="GREEN"),  # 29 is GREEN, validator says AMBER
+    dict(honest_leader, flags=["no_https", "password_field", "executable_download"]),  # invented strong signal
+    dict(honest_leader, flags=["no_https", "password_field", "brand_lookalike"]),  # invented URL-derived brand flag
     # 3. Leader sets verdict inconsistent with its own risk score
     dict(honest_leader, risk=20, verdict="RED"),  # risk 20 cannot be RED
     dict(honest_leader, risk=85, verdict="GREEN"),  # risk 85 cannot be GREEN
@@ -315,6 +320,13 @@ hostile_leaders = [
     {},
     None,
 ]
+
+# A leader and validator that straddle a verdict boundary must not agree, however close the scores are
+for lr, vr in ((34, 36), (36, 34), (69, 70), (70, 69)):
+    lv, vv = m._verdict_for(lr), m._verdict_for(vr)
+    assert not m._results_agree(dict(honest_leader, risk=lr, verdict=lv), dict(honest_leader, risk=vr, verdict=vv)), (lr, vr)
+# ...and a validator that derives a different verdict is not bypassed by a stale "verdict" field on its own result
+assert not m._results_agree(dict(honest_leader, risk=34, verdict="GREEN"), dict(honest_leader, risk=36, verdict="GREEN")), "validator verdict must be derived from its score"
 
 for idx, hostile in enumerate(hostile_leaders):
     assert not m._results_agree(hostile, matching_validator), f"Validator accepted hostile leader #{idx}!"

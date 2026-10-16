@@ -6,7 +6,9 @@
 [1m► Running Contract Unit Tests...[0m
   [92m✔ Contract Unit Tests PASSED[0m
 
+    note: frontend/test-phish.html not found, fixture check skipped
     all tests passed
+    v2.2 tests passed
 
 [1m► Running Adversarial & Exploit Suite...[0m
   [92m✔ Adversarial & Exploit Suite PASSED[0m
