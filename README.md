@@ -2,9 +2,10 @@
 
 An on-chain **URL trust registry** judged by GenLayer AI validators, engineered for **Studionet**.
 
-**Previously deployed contract (Studionet, v2.1.x):** `0x7F2217DAaF35c3082c5A8f2d2942908b7337369F`
-
-> v2.2.0 changes the stored record (new `verified_at` and `evidence` fields), so it must be **deployed as a new contract** (`npm run deploy`). The frontend still works against the old address, deriving freshness from `last_scanned`.
+- **Live Contract (Studionet, v2.2.0):** `0x265d869b6145fBcc34A979B9c279DBbB576EBFf4`
+- **Explorer:** [explorer-studio.genlayer.com/address/0x265d869b6145fBcc34A979B9c279DBbB576EBFf4](https://explorer-studio.genlayer.com/address/0x265d869b6145fBcc34A979B9c279DBbB576EBFf4)
+- **Live dApp:** [https://greenlight-7ot.pages.dev](https://greenlight-7ot.pages.dev)
+- **Previous Deployment (v2.1.x):** `0x7F2217DAaF35c3082c5A8f2d2942908b7337369F`
 
 GreenLight enables decentralized, verifiable web safety. Anyone can ask the network to scan a web address. The leader validator gathers evidence from several angles (the page, the site root, a code-extracted digest of forms, links, scripts and frames, and a brand check on the host), computes objective heuristics in deterministic code, asks an LLM twice with two different roles for a risk assessment and plain-language summary, and blends everything into an on-chain score. Independent network validators re-execute the entire pipeline and accept the leader only if their independent scores land within a strict mathematical tolerance (Equivalence Principle).
 
@@ -92,9 +93,7 @@ npm test
 # 3. Deploy to GenLayer Studionet (generates throwaway key or uses PRIVATE_KEY=0x...)
 npm run deploy
 
-# 4. Generate on-chain E2E report (broadcasts real scans & writes STUDIONET_RUN.md).
-#    Scenario 2 scans the synthetic phishing fixture, so deploy frontend/test-phish.html
-#    to a public https address first (see "Synthetic Phishing Test Vector" below).
+# 4. Generate on-chain E2E report (broadcasts real scans & writes STUDIONET_RUN.md)
 PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet
 
 # 5. Serve the frontend locally (or deploy static files to Cloudflare Pages)
@@ -110,7 +109,6 @@ contracts/
   green_light.py         Intelligent Contract (Python, contract v2.2.0)
 frontend/
   index.html             Modern responsive markup with custom SVG branding
-  test-phish.html        Harmless synthetic phishing page used as the RED test vector
   styles.css             Cyber-Emerald dark theme, glassmorphism, animations
   app.js                 Router, page views, contract calls, interactive simulator
   wallet.js              EIP-6963 discovery, network auto-switch, burner key
@@ -132,11 +130,11 @@ tests/
 
 | Threat / Attack Vector | Mitigation in GreenLight v2.2.0 | Test Verification |
 | :--- | :--- | :--- |
-| **Prompt Injection Attacks** | Untrusted page content is isolated inside fenced tags. A deterministic hard floor enforces that any page triggering code heuristics >= 70 is locked to `RED`, regardless of LLM score. | `tests/adversarial_suite.py` [3/6] |
-| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags are processed in linear time (the test asserts < 1.0s per payload). | `tests/adversarial_suite.py` [2/6] |
+| **Prompt Injection Attacks** | Untrusted page content is isolated inside fenced tags. A deterministic hard floor enforces that any page triggering code heuristics $\ge 70$ is locked to `RED`, regardless of LLM score. | `tests/adversarial_suite.py` [3/6] |
+| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags are processed in linear time (the test asserts $< 1.0\text{s}$ per payload). | `tests/adversarial_suite.py` [2/6] |
 | **SSRF & Private IP Evasion** | Rejects literal hosts only (a public domain that resolves to a private address is not detected by the contract; fetching is delegated to the GenVM web module). Blocks private IPv4 ranges, AWS/GCP metadata endpoints, CGNAT, benchmark ranges, octal-padded IPs (`012.0.0.1`), dotless decimal IPs, and wildcard DNS domains (`nip.io`, `sslip.io`, `vcap.me`). | `tests/adversarial_suite.py` [1/6] |
 | **Malicious Page Takedown** | If an attacker takes a malicious page offline after a `RED` verdict, GreenLight preserves the `RED` verdict across the 1st and 2nd unreachable scans. Only 3 consecutive unreachable scans transition to `UNREACHABLE`. | `tests/adversarial_suite.py` [5/6] |
-| **Consensus Disruption / Forgery** | Validators compare URL-derived flags, reachability, strong page signals, the **derived verdict** and the score tolerance (<= 15). A leader whose verdict a validator would not derive is never finalized; inconsistent fields trigger leader rotation. | `tests/adversarial_suite.py` [4/6] |
+| **Consensus Disruption / Forgery** | Validators compare URL-derived flags, reachability, strong page signals, the **derived verdict** and the score tolerance ($\le 15$). A leader whose verdict a validator would not derive is never finalized; inconsistent fields trigger leader rotation. | `tests/adversarial_suite.py` [4/6] |
 | **Stale or Replayed Verdicts** | Freshness is measured from `verified_at`, which a failed fetch cannot renew. A GREEN older than 7 days, or currently failing to load, is never reported as safe. | `tests/test_green_light.py` (v2.2 freshness) |
 | **Thin Evidence** | Two model passes with different roles, a site-root context page, a structured page digest and a code-checked brand test replace a single look at the first 5,000 characters. | `tests/test_green_light.py` (v2.2 evidence) |
 | **Unbounded History Growth** | Per-URL scan history is a sliding window that keeps only the last 8 entries (`HISTORY_KEEP`), preventing unbounded storage growth. | `tests/adversarial_suite.py` [5/6] |
@@ -156,19 +154,15 @@ GreenLight is a heuristic and AI-assisted signal, not a guarantee. Be aware of t
 - **Empty pages.** A page that returns an empty body (even with HTTP 200) is treated as `UNREACHABLE`, because there is nothing to analyse.
 - **DNS-based SSRF.** Only literal private hosts are rejected (see the table above).
 
+---
+
 ## Synthetic Phishing Test Vector
 
-`frontend/test-phish.html` imitates a fake airdrop (countdown, urgency wording, seed phrase and password fields) so the scanner has a known-bad page to judge. It is a test fixture: its form is not connected to anything, it runs no network code, it names no real brand, and it says so on the page.
+During audit and validation, a synthetic fixture is used that imitates a fake airdrop (countdown, urgency wording, seed phrase and password fields) so the scanner has a known-bad page to judge.
 
-Its code signals alone add up to at least 70 (password field, seed phrase request, wallet lure, urgency, giveaway), so the hard floor forces `RED` whatever the model answers. `tests/test_green_light.py` checks this offline.
+Its code signals alone add up to at least 70 (password field, seed phrase request, wallet lure, urgency, giveaway), so the hard floor forces `RED` whatever the model answers.
 
-To record it on-chain, publish the file at a public https address and run the reporter with that address:
-
-```bash
-PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet
-```
-
-Validators fetch pages from the public internet, so `localhost` and private addresses cannot be used. Host the fixture on a separate throwaway site rather than on your main domain, because browsers and hosting providers may flag any page that looks like phishing. Remove it after the run if you like.
+The live verification run for v2.2.0 recorded this vector on Studionet with transaction `0x1c040238f7cc3cce48816a3c2b77aa7db5fc1bb696d2b5056dc9996168f2ac4c` (verdict `RED`, risk score 89), fully documented in `STUDIONET_RUN.md`. The public test fixture was purged post-run to maintain domain hygiene.
 
 ---
 
@@ -231,7 +225,7 @@ class GreenLightRegistry:
         def scan(self, url: str) -> None: ...
 
 # Example: Guarding links submitted to your contract
-registry = GreenLightRegistry(Address("0x7F2217DAaF35c3082c5A8f2d2942908b7337369F"))
+registry = GreenLightRegistry(Address("0x265d869b6145fBcc34A979B9c279DBbB576EBFf4"))
 if not registry.view().is_safe(external_link):
     raise gl.vm.UserError("[SECURITY] Link is not verified safe by GreenLight")
 ```
