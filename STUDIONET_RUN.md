@@ -4,8 +4,8 @@
 - **Network:** GenLayer Studionet (Chain ID: `61999`)
 - **RPC Endpoint:** `https://studio.genlayer.com/api`
 - **Block Explorer:** [explorer-studio.genlayer.com](https://explorer-studio.genlayer.com)
-- **Execution Date (UTC):** `2026-10-16T07:04:10.048Z`
-- **Runner Account:** `0xE5a67664c913c53A3f7395D8213CA2F8F793315c`
+- **Execution Date (UTC):** `2026-10-16T08:47:49.079Z`
+- **Runner Account:** `0x13F22D6922948AA2Db05833d790aF0f438eb8631`
 - **Contract Version:** `v2.1.0`
 
 ---
@@ -14,25 +14,25 @@
 
 | # | Call | Caller | Transaction Hash | Status | Execution | Finality |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | `scan` | `0xE5a67664...93315c` | [`0xe3cc6abcbbf959ca...`](https://explorer-studio.genlayer.com/tx/0xe3cc6abcbbf959ca97d6c9245dcb8a5ee275f4ba56ee62e6d5afc79e979bde70) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
-| 2 | `scan` | `0xE5a67664...93315c` | [`0x3e4db37cd6de4cbe...`](https://explorer-studio.genlayer.com/tx/0x3e4db37cd6de4cbed4f931098e9ce0d6472f0676f5e1623964a9d38e72485bf0) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
+| 1 | `scan` | `0x13F22D69...eb8631` | [`0x576e2797b10a44e7...`](https://explorer-studio.genlayer.com/tx/0x576e2797b10a44e77c46bbbf86991bd55d4ec1e643c531880bcd0a861ab0d593) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
+| 2 | `scan` | `0x13F22D69...eb8631` | [`0x9aed18f3dcf5be65...`](https://explorer-studio.genlayer.com/tx/0x9aed18f3dcf5be659219b6b8a71f82dc5a3d7e5aa29b4430684bdb6ad35f84d4) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
 
 ---
 
 ## 2. Scenario 1: Safe Informational Resource Verification
 
-- **Submitted URL:** `https://example.com/?audit=safe-1792134250048`
+- **Submitted URL:** `https://example.com/?audit=safe-1792140469079`
 - **Verdict:** `GREEN`
 - **Blended Risk Score:** `6` / 100
 - **Threat Category:** `none`
 - **Reachable:** `true`
 - **Direct `is_safe()` Result:** `true (SAFE)`
 - **AI Validator Consensus Summary:**
-  > "This is a legitimate example domain used for documentation, not a real website or service."
+  > "This is the standard IANA example.com placeholder page used for documentation and poses no apparent threat to visitors."
 - **Reasons Recorded:**
-  - Official example domain used for documentation purposes
-  - Clear disclaimer stating it's not a real service
-  - No malicious content or suspicious elements detected
+  - example.com is IANA's reserved domain for documentation purposes, not a real service
+  - Page content matches the standard example.com placeholder page with no malicious elements
+  - Query parameter 'audit=safe-...' is unusual but no malicious content or instructions found
 - **Detected Code Signals / Flags:**
   - None (Clean heuristic signals)
 
@@ -40,39 +40,48 @@
 ```json
 {
   "known": true,
-  "last_scanned": 1792134253,
+  "last_scanned": 1792140472,
   "risk": 6,
   "safe": true,
-  "url": "https://example.com/?audit=safe-1792134250048",
+  "url": "https://example.com/?audit=safe-1792140469079",
   "verdict": "GREEN"
 }
 ```
 
 ---
 
-## 3. Scenario 2: Dynamic Endpoint Inspection
+## 3. Scenario 2: Synthetic Phishing Test Vector
 
-- **Submitted URL:** `https://httpbin.org/status/200?audit=verify-1792134250048`
-- **Verdict:** `UNREACHABLE`
-- **Blended Risk Score:** `0` / 100
-- **Threat Category:** `none`
-- **Reachable:** `false`
+A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop with a countdown and a seed phrase form. It collects nothing. The expected outcome is `RED`: its code signals alone reach the hard floor, so the verdict does not depend on the model.
+
+- **Expected Verdict:** `RED` (matched)
+- **Submitted URL:** `https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792140469079`
+- **Verdict:** `RED`
+- **Blended Risk Score:** `91` / 100
+- **Threat Category:** `wallet_drainer`
+- **Reachable:** `true`
 - **AI Validator Consensus Summary:**
-  > "The page could not be fetched, so no verdict about its content is possible."
+  > "This fake giveaway page is trying to steal your cryptocurrency wallet's secret recovery phrase."
 - **Reasons Recorded:**
-  - The page could not be fetched (network error, empty body or HTTP status 400 or higher).
+  - Page requests seed phrase under guise of 'validating wallet ownership'.
+  - Uses urgency language ('Urgent: act now', 'expires today').
+  - Contains giveaway lure for free tokens as bait.
 - **Detected Code Signals / Flags:**
-  - None
+  - `password_field`
+  - `seed_phrase_request`
+  - `wallet_connect_lure`
+  - `urgency_language`
+  - `giveaway_lure`
 
 ### Integrator `check()` View Response
 ```json
 {
   "known": true,
-  "last_scanned": 1792134286,
-  "risk": 0,
+  "last_scanned": 1792140506,
+  "risk": 91,
   "safe": false,
-  "url": "https://httpbin.org/status/200?audit=verify-1792134250048",
-  "verdict": "UNREACHABLE"
+  "url": "https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792140469079",
+  "verdict": "RED"
 }
 ```
 
@@ -83,6 +92,7 @@
 | Domain | Flagged Status | RED URLs Recorded | Neighborhood Penalty Applied |
 | :--- | :--- | :--- | :--- |
 | `example.com` | `NORMAL` | `0` | `None` |
+| `greenlight-7ot.pages.dev` | `NORMAL` | `1` | `None` |
 
 ---
 
@@ -90,13 +100,13 @@
 
 ```json
 {
-  "contributors": 1,
-  "scan_operations": 2,
-  "urls": 2,
+  "contributors": 2,
+  "scan_operations": 4,
+  "urls": 4,
   "verdicts": {
     "AMBER": 0,
-    "GREEN": 1,
-    "RED": 0,
+    "GREEN": 2,
+    "RED": 1,
     "UNREACHABLE": 1
   }
 }
@@ -106,7 +116,7 @@
 
 ## 6. Contributor Scan Record (`contributor`)
 
-- **Contributor Address:** `0xE5a67664c913c53A3f7395D8213CA2F8F793315c`
+- **Contributor Address:** `0x13F22D6922948AA2Db05833d790aF0f438eb8631`
 - **Total Validated Scans Submitted:** `2`
 
 ---
