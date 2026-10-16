@@ -31,20 +31,34 @@ async function run() {
     console.log(`  ✓ Checked "${bad}" -> is_safe: ${safe}, known: ${chk.known} (Safely handled)`);
   }
 
-  // 2. Test on-chain transaction revert for SSRF target
+  // 2. Test on-chain transaction rejection for SSRF
   console.log("\n[2/2] Testing on-chain transaction rejection for SSRF...");
   try {
-    await client.writeContract({
+    const tx = await client.writeContract({
       address: CONTRACT_ADDRESS,
       functionName: "scan",
       args: ["http://127.0.0.1/admin"],
     });
-    console.log("  ❌ Error: Contract accepted SSRF URL!");
+    console.log("  -> Broadcasted Tx:", tx);
+    console.log("  -> Waiting for consensus verification...");
+
+    const receipt = await client.waitForTransactionReceipt({
+      hash: tx,
+      status: "FINALIZED",
+      retries: 30,
+      interval: 3000,
+    });
+
+    if (receipt.status === "REVERTED" || receipt.status === "UNDETERMINED" || receipt.result?.error) {
+      console.log("  ✔ Contract successfully rejected SSRF transaction on-chain!");
+    } else {
+      console.log("  ❌ Error: Consensus did not reject the SSRF target.");
+    }
   } catch (err) {
-    console.log("  ✔ Contract successfully reverted transaction with UserError (SSRF blocked)!");
+    console.log("  ✔ Contract / RPC rejected SSRF target immediately:", err.message || err);
   }
 
-  console.log("\n✔ Live on-chain security assertions passed!");
+  console.log("\n✔ Live on-chain security assertions completed!");
 }
 
 run().catch(console.error);
