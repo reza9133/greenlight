@@ -1,11 +1,11 @@
 # GreenLight End-to-End Studionet Run Report
 
-- **Contract Address:** `0x7F2217DAaF35c3082c5A8f2d2942908b7337369F`
+- **Contract Address:** `0x265d869b6145fBcc34A979B9c279DBbB576EBFf4`
 - **Network:** GenLayer Studionet (Chain ID: `61999`)
 - **RPC Endpoint:** `https://studio.genlayer.com/api`
 - **Block Explorer:** [explorer-studio.genlayer.com](https://explorer-studio.genlayer.com)
-- **Execution Date (UTC):** `2026-10-16T08:47:49.079Z`
-- **Runner Account:** `0x13F22D6922948AA2Db05833d790aF0f438eb8631`
+- **Execution Date (UTC):** `2026-10-16T18:46:31.694Z`
+- **Runner Account:** `0xEA4455812D5b40A7Aa357Ff80Ef2651253B311c5`
 - **Contract Version:** `v2.2.0`
 
 ---
@@ -14,37 +14,42 @@
 
 | # | Call | Caller | Transaction Hash | Status | Execution | Finality |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | `scan` | `0x13F22D69...eb8631` | [`0x576e2797b10a44e7...`](https://explorer-studio.genlayer.com/tx/0x576e2797b10a44e77c46bbbf86991bd55d4ec1e643c531880bcd0a861ab0d593) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
-| 2 | `scan` | `0x13F22D69...eb8631` | [`0x9aed18f3dcf5be65...`](https://explorer-studio.genlayer.com/tx/0x9aed18f3dcf5be659219b6b8a71f82dc5a3d7e5aa29b4430684bdb6ad35f84d4) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
+| 1 | `scan` | `0xEA445581...B311c5` | [`0x35d8ae18b6533a23...`](https://explorer-studio.genlayer.com/tx/0x35d8ae18b6533a23b9eb074f717a910d6a69113c003075fcb023b38970b4c873) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
+| 2 | `scan` | `0xEA445581...B311c5` | [`0x1c040238f7cc3cce...`](https://explorer-studio.genlayer.com/tx/0x1c040238f7cc3cce48816a3c2b77aa7db5fc1bb696d2b5056dc9996168f2ac4c) | `ACCEPTED` | `SUCCESS` | `FINALIZED` |
 
 ---
 
 ## 2. Scenario 1: Safe Informational Resource Verification
 
-- **Submitted URL:** `https://example.com/?audit=safe-1792140469079`
+- **Submitted URL:** `https://example.com/?audit=safe-1792176391694`
 - **Verdict:** `GREEN`
-- **Blended Risk Score:** `6` / 100
+- **Blended Risk Score:** `0` / 100
 - **Threat Category:** `none`
 - **Reachable:** `true`
 - **Direct `is_safe()` Result:** `true (SAFE)`
 - **AI Validator Consensus Summary:**
-  > "This is the standard IANA example.com placeholder page used for documentation and poses no apparent threat to visitors."
+  > "This is the standard example.com placeholder page used for documentation, so it poses no scam or phishing risk."
 - **Reasons Recorded:**
-  - example.com is IANA's reserved domain for documentation purposes, not a real service
-  - Page content matches the standard example.com placeholder page with no malicious elements
-  - Query parameter 'audit=safe-...' is unusual but no malicious content or instructions found
+  - example.com is the IANA-reserved documentation domain, inherently non-malicious
+  - Page content is standard placeholder text with no forms, downloads, or wallet hooks
+  - No code-computed risk signals detected
 - **Detected Code Signals / Flags:**
   - None (Clean heuristic signals)
 
 ### Integrator `check()` View Response
 ```json
 {
+  "age_seconds": 70,
+  "expires_at": 1792781195,
+  "fresh": true,
   "known": true,
-  "last_scanned": 1792140472,
-  "risk": 6,
+  "last_scanned": 1792176395,
+  "needs_rescan": false,
+  "risk": 0,
   "safe": true,
-  "url": "https://example.com/?audit=safe-1792140469079",
-  "verdict": "GREEN"
+  "url": "https://example.com/?audit=safe-1792176391694",
+  "verdict": "GREEN",
+  "verified_at": 1792176395
 }
 ```
 
@@ -55,17 +60,17 @@
 A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop with a countdown and a seed phrase form. It collects nothing. The expected outcome is `RED`: its code signals alone reach the hard floor, so the verdict does not depend on the model.
 
 - **Expected Verdict:** `RED` (matched)
-- **Submitted URL:** `https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792140469079`
+- **Submitted URL:** `https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792176391694`
 - **Verdict:** `RED`
-- **Blended Risk Score:** `91` / 100
+- **Blended Risk Score:** `89` / 100
 - **Threat Category:** `wallet_drainer`
 - **Reachable:** `true`
 - **AI Validator Consensus Summary:**
-  > "This fake giveaway page is trying to steal your cryptocurrency wallet's secret recovery phrase."
+  > "The page pretends to be an ExampleSwap airdrop but asks for your wallet seed phrase with urgent, fake giveaway language."
 - **Reasons Recorded:**
-  - Page requests seed phrase under guise of 'validating wallet ownership'.
-  - Uses urgency language ('Urgent: act now', 'expires today').
-  - Contains giveaway lure for free tokens as bait.
+  - Requests your 12‑word seed phrase
+  - Urgent giveaway language urges immediate action
+  - Form is a fake test page, not a legitimate service
 - **Detected Code Signals / Flags:**
   - `password_field`
   - `seed_phrase_request`
@@ -76,12 +81,17 @@ A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop w
 ### Integrator `check()` View Response
 ```json
 {
+  "age_seconds": 27,
+  "expires_at": 1792781241,
+  "fresh": true,
   "known": true,
-  "last_scanned": 1792140506,
-  "risk": 91,
+  "last_scanned": 1792176441,
+  "needs_rescan": false,
+  "risk": 89,
   "safe": false,
-  "url": "https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792140469079",
-  "verdict": "RED"
+  "url": "https://greenlight-7ot.pages.dev/test-phish.html?audit=phish-1792176391694",
+  "verdict": "RED",
+  "verified_at": 1792176441
 }
 ```
 
@@ -104,10 +114,10 @@ A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop w
   "scan_operations": 4,
   "urls": 4,
   "verdicts": {
-    "AMBER": 0,
+    "AMBER": 1,
     "GREEN": 2,
     "RED": 1,
-    "UNREACHABLE": 1
+    "UNREACHABLE": 0
   }
 }
 ```
@@ -116,7 +126,7 @@ A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop w
 
 ## 6. Contributor Scan Record (`contributor`)
 
-- **Contributor Address:** `0x13F22D6922948AA2Db05833d790aF0f438eb8631`
+- **Contributor Address:** `0xEA4455812D5b40A7Aa357Ff80Ef2651253B311c5`
 - **Total Validated Scans Submitted:** `2`
 
 ---
@@ -129,10 +139,7 @@ A harmless test page (`frontend/test-phish.html`) that imitates a fake airdrop w
 | `red_from` | `70` | Blended risk $\ge 70$ produces RED |
 | `hard_floor_heuristic` | `70` | Code score $\ge 70$ forces at least RED |
 | `llm_weight_percent` | `65%` | Percentage weight of LLM assessment |
-| `risk_tolerance` | `15` | Max allowed score gap between Leader & Validators (the derived verdict must also match: `verdict_must_match`) |
-| `fresh_for_seconds` | `604800` | A verdict counts as fresh for 7 days after the page was last really read |
-| `llm_passes` | `2` | Independent model passes (analyst and auditor) per analysis |
-| `llm_split_limit` | `30` | If the two passes differ by more, the higher risk wins |
+| `risk_tolerance` | `15` | Max allowed score gap between Leader & Validators |
 | `rescan_cooldown_seconds` | `60s` | Per-URL rescan cooldown window |
 | `sender_cooldown_seconds` | `15s` | Per-sender anti-spam brake |
 | `neighborhood_bonus` | `+15` | Score penalty added if host has $\ge 2$ RED URLs |
