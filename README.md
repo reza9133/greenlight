@@ -39,7 +39,7 @@ User Transaction: scan(url)
            │
            ▼
 [3] Dual-Layer Analysis (gl.vm.run_nondet_unsafe)
-    ├── Layer A: Deterministic Code Heuristics (15 Signals)
+    ├── Layer A: Deterministic Code Heuristics (14 Signals)
     │   ├── Form destinations (cross-origin credential posting)
     │   ├── Lure language (mnemonic/seed phrase, urgency, giveaway)
     │   └── URL signals (punycode, bare IP, risky TLDs, no HTTPS)
@@ -78,8 +78,10 @@ npm test
 # 3. Deploy to GenLayer Studionet (generates throwaway key or uses PRIVATE_KEY=0x...)
 npm run deploy
 
-# 4. Generate on-chain E2E report (broadcasts real scans & writes STUDIONET_RUN.md)
-npm run report:studionet
+# 4. Generate on-chain E2E report (broadcasts real scans & writes STUDIONET_RUN.md).
+#    Scenario 2 scans the synthetic phishing fixture, so deploy frontend/test-phish.html
+#    to a public https address first (see "Synthetic Phishing Test Vector" below).
+PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet
 
 # 5. Serve the frontend locally (or deploy static files to Cloudflare Pages)
 npm run serve
@@ -91,9 +93,10 @@ npm run serve
 
 ```text
 contracts/
-  green_light.py         Intelligent Contract (Python, GenVM v2.1.0)
+  green_light.py         Intelligent Contract (Python, contract v2.1.0)
 frontend/
   index.html             Modern responsive markup with custom SVG branding
+  test-phish.html        Harmless synthetic phishing page used as the RED test vector
   styles.css             Cyber-Emerald dark theme, glassmorphism, animations
   app.js                 Router, page views, contract calls, interactive simulator
   wallet.js              EIP-6963 discovery, network auto-switch, burner key
@@ -116,12 +119,39 @@ tests/
 | Threat / Attack Vector | Mitigation in GreenLight v2.1.0 | Test Verification |
 | :--- | :--- | :--- |
 | **Prompt Injection Attacks** | Untrusted page content is isolated inside fenced tags. A deterministic hard floor enforces that any page triggering code heuristics >= 70 is locked to `RED`, regardless of LLM score. | `tests/adversarial_suite.py` [3/6] |
-| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags execute in < 0.1s. | `tests/adversarial_suite.py` [2/6] |
-| **SSRF & Private IP Evasion** | Blocks private IPv4 ranges, AWS/GCP metadata endpoints, CGNAT, benchmark ranges, octal-padded IPs (`012.0.0.1`), dotless decimal IPs, and wildcard DNS domains (`nip.io`, `sslip.io`, `vcap.me`). | `tests/adversarial_suite.py` [1/6] |
+| **ReDoS (Regex Denial of Service)** | HTML stripping uses a single-pass linear state machine without nested regex quantifiers. Hostile pages with 100,000 unclosed tags are processed in linear time (the test asserts < 1.0s per payload). | `tests/adversarial_suite.py` [2/6] |
+| **SSRF & Private IP Evasion** | Rejects literal hosts only (a public domain that resolves to a private address is not detected by the contract; fetching is delegated to the GenVM web module). Blocks private IPv4 ranges, AWS/GCP metadata endpoints, CGNAT, benchmark ranges, octal-padded IPs (`012.0.0.1`), dotless decimal IPs, and wildcard DNS domains (`nip.io`, `sslip.io`, `vcap.me`). | `tests/adversarial_suite.py` [1/6] |
 | **Malicious Page Takedown** | If an attacker takes a malicious page offline after a `RED` verdict, GreenLight preserves the `RED` verdict across the 1st and 2nd unreachable scans. Only 3 consecutive unreachable scans transition to `UNREACHABLE`. | `tests/adversarial_suite.py` [5/6] |
 | **Consensus Disruption / Forgery** | Validators strictly compare URL-derived flags, reachability, and risk score tolerance (<= 20). Inconsistent leader fields trigger automatic leader rotation. | `tests/adversarial_suite.py` [4/6] |
-| **Circular Buffer History Leaks** | Per-URL scan history is bounded to a circular buffer of the last 8 entries (`HISTORY_KEEP`), preventing unbounded storage growth. | `tests/adversarial_suite.py` [5/6] |
+| **Unbounded History Growth** | Per-URL scan history is a sliding window that keeps only the last 8 entries (`HISTORY_KEEP`), preventing unbounded storage growth. | `tests/adversarial_suite.py` [5/6] |
 | **View Method Failures** | View methods (`is_safe`, `check`, `get_scan`, `host_overview`) gracefully catch invalid or malformed inputs without reverting. | `tests/adversarial_suite.py` [6/6] |
+
+---
+
+## Known Limitations
+
+GreenLight is a heuristic and AI-assisted signal, not a guarantee. Be aware of these trade-offs:
+
+- **Cloaking.** A site can show clean content to validators and malicious content to real visitors. A `GREEN` verdict means "looked safe when scanned", so integrators should check `last_scanned` against their own freshness rule.
+- **Shared hosts.** The repeat-offender bonus (+15 when a host has 2 or more `RED` URLs) is applied per host. On user-content hosts, an attacker could raise the score of other URLs on the same host.
+- **Spam brake.** The 15s per-sender cooldown can be bypassed with several addresses. The 60s per-URL cooldown still applies.
+- **Consensus tolerance.** Validators accept a leader score within +/-20. Near a verdict boundary, two validators can therefore land on different verdicts and still agree.
+- **Empty pages.** A page that returns an empty body (even with HTTP 200) is treated as `UNREACHABLE`, because there is nothing to analyse.
+- **DNS-based SSRF.** Only literal private hosts are rejected (see the table above).
+
+## Synthetic Phishing Test Vector
+
+`frontend/test-phish.html` imitates a fake airdrop (countdown, urgency wording, seed phrase and password fields) so the scanner has a known-bad page to judge. It is a test fixture: its form is not connected to anything, it runs no network code, it names no real brand, and it says so on the page.
+
+Its code signals alone add up to at least 70 (password field, seed phrase request, wallet lure, urgency, giveaway), so the hard floor forces `RED` whatever the model answers. `tests/test_green_light.py` checks this offline.
+
+To record it on-chain, publish the file at a public https address and run the reporter with that address:
+
+```bash
+PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet
+```
+
+Validators fetch pages from the public internet, so `localhost` and private addresses cannot be used. Host the fixture on a separate throwaway site rather than on your main domain, because browsers and hosting providers may flag any page that looks like phishing. Remove it after the run if you like.
 
 ---
 

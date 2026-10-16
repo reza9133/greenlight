@@ -1,6 +1,6 @@
 {
   "name": "greenlight",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "private": true,
   "description": "GreenLight: an on-chain URL trust registry judged by GenLayer AI validators (Studionet).",
   "type": "module",

@@ -621,7 +621,7 @@ const DOCS = {
         <tr><td><code>category</code></td><td>str</td><td>Threat type: phishing, wallet_drainer, scam_giveaway, malware_lure, fake_store, impersonation, other, none.</td></tr>
         <tr><td><code>reasons</code>, <code>flags</code></td><td>str, str</td><td>Model explanation and deterministic heuristics that fired.</td></tr>
         <tr><td><code>reporter</code>, <code>last_scanner</code></td><td>Address</td><td>Original discoverer and most recent contributor.</td></tr>
-        <tr><td><code>history</code></td><td>str</td><td>Circular buffer of the last 8 scans for sparkline analytics.</td></tr>
+        <tr><td><code>history</code></td><td>str</td><td>Sliding window of the last 8 scans, used for the history timeline.</td></tr>
       </tbody>
     </table>`],
 

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ExampleSwap Free Airdrop - Claim Your Free Tokens</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b1020; color: #e8ecf5; margin: 0; padding: 2rem; }
+    main { max-width: 34rem; margin: 0 auto; background: #151c33; border-radius: 12px; padding: 1.5rem 2rem; }
+    .fixture { background: #3a2a00; border: 1px solid #ffb300; color: #ffd466; padding: .6rem .9rem; border-radius: 8px; font-size: .9rem; }
+    input, button { width: 100%; box-sizing: border-box; margin: .4rem 0; padding: .6rem; border-radius: 6px; border: 1px solid #44507a; background: #0b1020; color: inherit; }
+    button { background: #2a8f5a; border: 0; cursor: not-allowed; }
+    #timer { font-size: 1.6rem; font-weight: 700; color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="fixture">
+      <strong>SYNTHETIC TEST FIXTURE.</strong> This page belongs to the GreenLight test suite. It imitates common
+      scam-page wording so the scanner can be tested. It is not a real service, it collects nothing, and its form
+      is not connected to anything.
+    </p>
+
+    <h1>ExampleSwap Free Airdrop</h1>
+    <p>Claim your free airdrop of 5,000 EXS tokens. Double your balance for every wallet that joins today.</p>
+
+    <p><strong>Urgent:</strong> act now. This limited time offer expires today and your allocation will be suspended afterwards.</p>
+    <p>Offer ends in <span id="timer">09:59</span></p>
+
+    <p>To complete the claim, validate wallet ownership by entering your seed phrase below.
+       We will use your recovery phrase to sync your balance.</p>
+
+    <form onsubmit="return false">
+      <label for="seed">Enter your 12-word seed phrase</label>
+      <input id="seed" type="text" placeholder="word1 word2 word3 ... word12" autocomplete="off">
+      <label for="pw">Wallet password</label>
+      <input id="pw" type="password" placeholder="Password" autocomplete="off">
+      <button type="button" disabled>Claim now (disabled in this fixture)</button>
+    </form>
+  </main>
+
+  <script>
+    // Cosmetic countdown only. No network access, no data collection.
+    (function () {
+      var left = 599, el = document.getElementById("timer");
+      setInterval(function () {
+        left = left > 0 ? left - 1 : 599;
+        var m = String(Math.floor(left / 60)).padStart(2, "0"), s = String(left % 60).padStart(2, "0");
+        el.textContent = m + ":" + s;
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>

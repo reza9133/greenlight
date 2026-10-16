@@ -388,7 +388,7 @@ rec5 = contract.get_scan(PHISH_URL)
 assert rec5["verdict"] == "RED", "Page restoration failed to restore RED verdict"
 assert rec5["miss_streak"] == 0
 
-# Step 5: Circular history buffer boundary check
+# Step 5: Sliding-window history boundary check
 # Run 12 additional scans to ensure history does not grow unbounded
 for i in range(12):
     clock[0] += m.RESCAN_COOLDOWN + 1

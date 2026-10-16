@@ -12,6 +12,12 @@
  *   CONTRACT_ADDRESS=0x... PRIVATE_KEY=0x... node scripts/e2e_reporter.mjs
  *   # Offline/Mock demonstration mode:
  *   node scripts/e2e_reporter.mjs --mock
+ *
+ * Scenario 2 scans the synthetic phishing fixture (frontend/test-phish.html). Validators fetch
+ * pages from the public internet, so the fixture must be reachable over https. Deploy it first,
+ * then pass its public address:
+ *   PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet
+ *   # or: node scripts/e2e_reporter.mjs --phish-url=https://your-test-site.example/test-phish.html
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -24,10 +30,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hostOf = u => { try { return new URL(u).hostname.toLowerCase(); } catch { return ""; } };
 const norm = v => v instanceof Map ? Object.fromEntries([...v].map(([k, x]) => [k, norm(x)])) : Array.isArray(v) ? v.map(norm) : typeof v === "bigint" ? Number(v) : v;
 
 const args = process.argv.slice(2);
 const IS_MOCK = args.includes("--mock") || process.env.MOCK === "true";
+
+// Public address of the synthetic phishing fixture (frontend/test-phish.html).
+const phishArg = args.find(a => a.startsWith("--phish-url="));
+const PHISH_BASE = ((phishArg ? phishArg.slice("--phish-url=".length) : process.env.PHISH_TEST_URL) || "").trim();
+if (!PHISH_BASE && !IS_MOCK) {
+  console.error("\x1b[31m[ERROR] Scenario 2 needs the public https address of frontend/test-phish.html.\x1b[0m");
+  console.error("Deploy the fixture, then run:");
+  console.error("  PHISH_TEST_URL=https://your-test-site.example/test-phish.html npm run report:studionet");
+  process.exit(1);
+}
+if (PHISH_BASE && !/^https:\/\/[^\s?#]+$/i.test(PHISH_BASE)) {
+  console.error("\x1b[31m[ERROR] PHISH_TEST_URL must be a plain https URL without a query string or fragment.\x1b[0m");
+  process.exit(1);
+}
 
 // ----------------------------------------------------------------------------
 // 1. Resolve Contract Address and Account
@@ -148,11 +169,15 @@ async function readView(functionName, args = []) {
         urls: 2,
         scan_operations: 2,
         contributors: 1,
-        verdicts: { GREEN: 1, AMBER: 1, RED: 0, UNREACHABLE: 0 },
+        verdicts: { GREEN: 1, AMBER: 0, RED: 1, UNREACHABLE: 0 },
       };
     }
     if (functionName === "contributor") return { address: account.address, scans: 2 };
-    if (functionName === "host_overview") return { host: "example.com", red_urls: 0, flagged: false };
+    if (functionName === "host_overview") {
+      const h = String(args[0] || "example.com");
+      const isPhishHost = h !== "example.com";
+      return { host: h, red_urls: isPhishHost ? 1 : 0, flagged: false };
+    }
     if (functionName === "is_safe") return args[0].includes("safe");
     if (functionName === "check") {
       const isGreen = args[0].includes("safe");
@@ -160,8 +185,8 @@ async function readView(functionName, args = []) {
         url: args[0],
         known: true,
         safe: isGreen,
-        verdict: isGreen ? "GREEN" : "AMBER",
-        risk: isGreen ? 8 : 42,
+        verdict: isGreen ? "GREEN" : "RED",
+        risk: isGreen ? 8 : 88,
         last_scanned: Math.floor(Date.now() / 1000),
       };
     }
@@ -169,15 +194,15 @@ async function readView(functionName, args = []) {
       const isGreen = args[0].includes("safe");
       return {
         url: args[0],
-        host: "example.com",
-        verdict: isGreen ? "GREEN" : "AMBER",
-        risk: isGreen ? 8 : 42,
-        category: isGreen ? "none" : "other",
+        host: isGreen ? "example.com" : hostOf(args[0]),
+        verdict: isGreen ? "GREEN" : "RED",
+        risk: isGreen ? 8 : 88,
+        category: isGreen ? "none" : "wallet_drainer",
         impersonates: "",
         reasons: isGreen
           ? ["Static informational resource with no credential requests."]
-          : ["Dynamic parameters present; mildly suspicious keyword structure."],
-        flags: isGreen ? [] : ["hyphen_heavy"],
+          : ["Asks for a seed phrase and wallet password.", "Free airdrop lure with a countdown and urgency wording."],
+        flags: isGreen ? [] : ["password_field", "seed_phrase_request", "wallet_connect_lure", "urgency_language", "giveaway_lure"],
         reachable: true,
         reporter: account.address,
         last_scanner: account.address,
@@ -187,8 +212,8 @@ async function readView(functionName, args = []) {
         miss_streak: 0,
         summary: isGreen
           ? "The domain is an official, static reference page with no forms."
-          : "The web address shows no overt phishing fields but lacks complete trust history.",
-        history: [{ at: Math.floor(Date.now() / 1000), verdict: isGreen ? "GREEN" : "AMBER", risk: isGreen ? 8 : 42 }],
+          : "This page asks for a seed phrase behind a fake airdrop offer, which is a typical wallet-theft scam.",
+        history: [{ at: Math.floor(Date.now() / 1000), verdict: isGreen ? "GREEN" : "RED", risk: isGreen ? 8 : 88 }],
       };
     }
   }
@@ -210,7 +235,9 @@ async function main() {
 
   // Test URLs: include query parameters to avoid hitting 60s per-URL rescan cooldown
   const urlSafe = `https://example.com/?audit=safe-${timestamp}`;
-  const urlCheck = `https://httpbin.org/status/200?audit=verify-${timestamp}`;
+  const phishBase = PHISH_BASE || "https://greenlight-test.example/test-phish.html";
+  const urlCheck = `${phishBase}?audit=phish-${timestamp}`;
+  const phishHost = hostOf(urlCheck);
 
   const transactions = [];
 
@@ -246,7 +273,7 @@ async function main() {
   }
   console.log("\r  └─ Cooldown satisfied. Proceeding to Scenario 2.     \n");
 
-  console.log(`\x1b[1m[4/5] Executing Scenario 2: Dynamic Verification URL Scan\x1b[0m`);
+  console.log(`\x1b[1m[4/5] Executing Scenario 2: Synthetic Phishing Test Vector\x1b[0m`);
   console.log(`  └─ Target URL: \x1b[33m${urlCheck}\x1b[0m`);
   const tx2 = await writeScan(urlCheck);
   transactions.push({
@@ -271,12 +298,17 @@ async function main() {
   const checkRec2 = await readView("check", [urlCheck]);
 
   const hostIntel = await readView("host_overview", ["example.com"]);
+  const phishIntel = await readView("host_overview", [phishHost]);
   const finalStats = await readView("stats");
   const contributorStats = await readView("contributor", [account.address]);
 
   console.log(`  ✓ Record 1 Verdict: ${scanRec1?.verdict || "N/A"} (Risk: ${scanRec1?.risk ?? "N/A"})`);
   console.log(`  ✓ Record 2 Verdict: ${scanRec2?.verdict || "N/A"} (Risk: ${scanRec2?.risk ?? "N/A"})`);
   console.log(`  ✓ Total Operations now: ${finalStats.scan_operations}`);
+  const phishOk = scanRec2?.verdict === "RED";
+  if (!phishOk) {
+    console.log(`\x1b[33m  ! Scenario 2 expected RED but got ${scanRec2?.verdict || "N/A"}. Check that ${urlCheck.split("?")[0]} is publicly reachable and serves test-phish.html.\x1b[0m`);
+  }
 
   // ----------------------------------------------------------------------------
   // 4. Generate STUDIONET_RUN.md
@@ -323,8 +355,11 @@ ${JSON.stringify(checkRec1, null, 2)}
 
 ---
 
-## 3. Scenario 2: Dynamic Endpoint Inspection
+## 3. Scenario 2: Synthetic Phishing Test Vector
 
+A harmless test page (\`frontend/test-phish.html\`) that imitates a fake airdrop with a countdown and a seed phrase form. It collects nothing. The expected outcome is \`RED\`: its code signals alone reach the hard floor, so the verdict does not depend on the model.
+
+- **Expected Verdict:** \`RED\` (${phishOk ? "matched" : "NOT matched"})
 - **Submitted URL:** \`${urlCheck}\`
 - **Verdict:** \`${scanRec2?.verdict || "UNKNOWN"}\`
 - **Blended Risk Score:** \`${scanRec2?.risk ?? 0}\` / 100
@@ -349,6 +384,7 @@ ${JSON.stringify(checkRec2, null, 2)}
 | Domain | Flagged Status | RED URLs Recorded | Neighborhood Penalty Applied |
 | :--- | :--- | :--- | :--- |
 | \`${hostIntel.host}\` | \`${hostIntel.flagged ? "FLAGGED (REPEAT OFFENDER)" : "NORMAL"}\` | \`${hostIntel.red_urls}\` | \`${hostIntel.flagged ? "+15 Risk Points" : "None"}\` |
+| \`${phishIntel.host}\` | \`${phishIntel.flagged ? "FLAGGED (REPEAT OFFENDER)" : "NORMAL"}\` | \`${phishIntel.red_urls}\` | \`${phishIntel.flagged ? "+15 Risk Points" : "None"}\` |
 
 ---
 
