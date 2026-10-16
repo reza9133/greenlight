@@ -9,7 +9,7 @@
 // (the same one package.json asks for), so a future release cannot change behaviour under your feet.
 
 export const CONFIG = {
-  CONTRACT_ADDRESS: "0x7F2217DAaF35c3082c5A8f2d2942908b7337369F",
+  CONTRACT_ADDRESS: "0x265d869b6145fBcc34A979B9c279DBbB576EBFf4",
   SDK_URL: "https://esm.sh/genlayer-js@1.1.8",
   CHAINS_URL: "https://esm.sh/genlayer-js@1.1.8/chains",
   // Optional override if Studionet details ever change: { chainId, rpc, explorer }
