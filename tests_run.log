@@ -1,0 +1,41 @@
+
+[1m[96m====================================================[0m
+[1m[96m    GreenLight Complete Verification Suite          [0m
+[1m[96m====================================================[0m
+
+[1m► Running Contract Unit Tests...[0m
+  [92m✔ Contract Unit Tests PASSED[0m
+
+    all tests passed
+
+[1m► Running Adversarial & Exploit Suite...[0m
+  [92m✔ Adversarial & Exploit Suite PASSED[0m
+
+    ============================================================
+      GreenLight Adversarial & Exploit Test Suite
+    ============================================================
+    [1/6] Testing SSRF & Host Evasion Defenses...
+      ✓ Successfully blocked 62 malicious/SSRF test vectors.
+    [2/6] Testing ReDoS Resistance on Hostile HTML Payloads...
+      ✓ Handled 9 hostile ReDoS payloads linearly (< 1.0s each).
+    [3/6] Testing Prompt Injection & Model Sanitization...
+      ✓ Prompt injection thwarted by code heuristics floor and LLM sanitizer.
+    [4/6] Testing Validator Consensus & Fault Injection...
+      ✓ All leader forging, flag tampering, and score divergence attacks rejected.
+    [5/6] Testing Contract State Machine & Attack Mitigations...
+      ✓ State machine passed: takedown defense verified, history bounded to 8 entries.
+    [6/6] Testing Resilient View Methods (Zero Unhandled Exceptions)...
+      ✓ View methods never crash on malformed inputs; host normalization verified.
+    ============================================================
+      ALL ADVERSARIAL TESTS PASSED (100% SUCCESS)
+    ============================================================
+
+[1m► Running Wallet Layer Tests...[0m
+  [92m✔ Wallet Layer Tests PASSED[0m
+
+    wallet tests passed
+
+[1m[96m====================================================[0m
+[1m[92m  🎉 ALL SUITES PASSED SUCCESSFULLY!                [0m
+[1m[96m====================================================[0m
+
